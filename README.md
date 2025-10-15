@@ -1,82 +1,83 @@
-# lx-fivem-docs
+# lx-fivem-docs — Release Notes
 
-**Automatic documentation generator for FiveM resources**
+### Version: latest (`last`)
+**Release date:** 2025
 
-`lx-fivem-docs` is a lightweight CLI tool that scans your FiveM resource source code (`.lua`, `.js`, `.ts`) and automatically generates a clear documentation file (`API.md`) describing all network events, NUI callbacks, and commands used in your scripts.
+---
+
+## 🧩 Overview
+
+`lx-fivem-docs` is an automatic documentation generator for FiveM resources.  
+It scans your resource files (`.lua`, `.js`, `.ts`) and generates detailed Markdown and JSON documentation of all registered and triggered events, NUI callbacks, and commands.
 
 ---
 
 ## ✨ Features
 
-- Scans entire resource folders recursively  
-- Detects:
+- 🔍 Scans entire resource directories recursively  
+- 📜 Detects:
   - `RegisterNetEvent`, `AddEventHandler`, `TriggerServerEvent`, `TriggerClientEvent`, `TriggerEvent`
-  - `RegisterCommand` and `RegisterNUICallback` in JavaScript/TypeScript
-- Generates:
-  - **`API.md`** — human-readable Markdown documentation  
-  - **`trace.json`** — structured JSON data for further analysis
-- Automatically resolves event names stored in variables or simple tables  
-- Works completely offline — only requires Node.js
+  - `RegisterCommand` and `RegisterNUICallback` in JS/TS files  
+- 🧾 Generates:
+  - **API.md** — a structured Markdown document  
+  - **trace.json** — machine-readable event mapping
+- 🧠 Resolves events even if they’re stored in variables or tables
+- 🧰 Works offline, no internet connection required
 
 ---
 
 ## ⚙️ Requirements
 
-- Node.js **version 18 or newer**
-- npm (comes bundled with Node.js)
+- Node.js **version 18 or higher**
+- npm (comes pre-installed with Node)
 
 ---
 
-## 🚀 Installation and Setup
+## 🚀 How to Use
 
-1. Clone the repository:
+1. **Clone the repository**
    ```bash
-   git clone https://github.com/<your-username>/lx-fivem-docs.git
+   git clone https://github.com/LexikonnX/lx-fivem-docs.git
    cd lx-fivem-docs
    ```
 
-2. Install dependencies:
+2. **Install dependencies**
    ```bash
    npm install
    ```
 
-3. Build the project:
+3. **Build the project**
    ```bash
    npm run build
    ```
 
-This will compile all TypeScript files from the `src/` directory into the `dist/` folder.
+4. **Run the generator**
+   ```bash
+   node dist/index.js scan <path-to-resource> --out <output-directory> --format md,json
+   ```
 
----
-
-## 🧮 Usage
-
-Run the generator through Node:
-
-```bash
-node dist/index.js scan <path-to-resource> --out <output-directory> --format <format>
-```
-
-### Example
-
+Example:
 ```bash
 node dist/index.js scan ./resources/[local]/lx-admin --out ./docs --format md,json
 ```
 
-This command:
-- Scans all files inside `./resources/[local]/lx-admin`
-- Generates:
-  - `./docs/API.md`
-  - `./docs/trace.json`
+This will create:
+- `./docs/API.md` — readable documentation
+- `./docs/trace.json` — structured event mapping
 
 ---
 
-## 🗂️ Output Structure
+## 🧭 Command Options
 
-### API.md
-A Markdown summary of all detected events, commands, and NUI callbacks grouped by file.
+| Option | Description | Example |
+|---------|-------------|----------|
+| `scan <path>` | Path to the resource directory | `scan ./resources/[local]/lx-admin` |
+| `--out <dir>` | Output directory for docs | `--out ./docs` |
+| `--format <type>` | Format type (`md`, `json`, or both) | `--format md,json` |
 
-Example:
+---
+
+## 🧠 Example Output (API.md)
 
 ```md
 # Project map
@@ -99,65 +100,17 @@ Example:
 | lx-admin:saveData | server.lua:32 | server.lua:48 |
 ```
 
-### trace.json
-Machine-readable JSON structure containing all discovered data.
-
----
-
-## 🧭 Command Options
-
-| Option | Description | Example |
-|---------|-------------|----------|
-| `scan <path>` | Path to the resource folder | `scan ./resources/[local]/lx-admin` |
-| `--out <dir>` | Output directory for generated docs | `--out ./docs` |
-| `--format <type>` | Output format: `md`, `json`, or both (`md,json`) | `--format md,json` |
-
----
-
-## 🧰 Typical Workflow
-
-```bash
-git clone https://github.com/<your-username>/lx-fivem-docs.git
-cd lx-fivem-docs
-npm install
-npm run build
-node dist/index.js scan ./resources/[local]/lx-police --out ./docs --format md,json
-```
-
-After running the command, open `./resources/[local]/lx-police/docs/API.md` to view the generated documentation.
-
----
-
-## 🧩 Tips
-
-- Run the script from the project root (where `package.json` is).  
-- Works with any FiveM resource — client, server, or shared.  
-- Generated paths are **relative** to the scanned resource folder.  
-- You can run it multiple times for different resources — just change the `scan` path.
-
----
-
-## 🧨 Troubleshooting
-
-| Problem | Cause | Solution |
-|----------|--------|-----------|
-| `import: command not found` | File executed as shell script instead of Node | Always run using `node dist/index.js` |
-| `Error: Cannot find module 'tsup'` | Dependencies missing | Run `npm install` |
-| Absolute paths in documentation | Older version used | Rebuild using `npm run build` |
-| No events found | No recognizable `RegisterNetEvent` or `Trigger...` calls | Check your source files |
-
----
-
-## 🧠 How It Works
-
-1. Recursively scans the provided folder.  
-2. Parses `.lua`, `.js`, `.ts`, and `fxmanifest.lua` files.  
-3. Detects all event and command registrations and calls.  
-4. Builds an internal map of all detected data.  
-5. Exports the result into Markdown (`API.md`) and/or JSON (`trace.json`).
-
 ---
 
 ## 🪪 License
 
-MIT License © 2025 [Your Name or Organization]
+MIT License © 2025 LexikonnX  
+Project repository: [https://github.com/LexikonnX/lx-fivem-docs](https://github.com/LexikonnX/lx-fivem-docs)
+
+---
+
+### 💬 Notes
+
+This release contains the stable version of the CLI tool capable of generating detailed FiveM resource documentation.  
+For bug reports or feature requests, please open an issue on the repository.
+
