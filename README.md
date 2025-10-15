@@ -1,4 +1,4 @@
-# lx-fivem-docs — Release: `last`
+# lx-fivem-docs — Release: `v1.0.0`
 
 **Automatic documentation generator for FiveM resources**  
 Author: **LexikonnX**  
