@@ -1,226 +1,296 @@
-// src/index.ts
-import { Command } from "commander";
-
 // src/utils/fs.ts
-import { glob } from "glob";
-import { readFile } from "fs/promises";
-import { join, sep } from "path";
-async function listFiles(root, patterns) {
-  const files = await glob(patterns, { cwd: root, dot: true, posix: true, absolute: false });
-  return files.map((f) => f.split(sep).join("/"));
+import { promises as fsp } from "fs";
+import { dirname } from "path";
+async function readText(p) {
+  return await fsp.readFile(p, "utf8");
 }
-async function read(root, rel) {
-  const p = join(root, rel);
-  return await readFile(p, "utf8");
+async function writeText(p, s) {
+  await fsp.mkdir(dirname(p), { recursive: true }).catch(() => {
+  });
+  await fsp.writeFile(p, s, "utf8");
 }
-
-// src/parsers/lua.ts
-import luaparse from "luaparse";
-function parseLua(content, file, side) {
-  const events = {};
-  const commands = [];
-  const exportsArr = [];
-  const convars = [];
-  const ast = luaparse.parse(content, { locations: true, ranges: true, comments: false, luaVersion: "5.1" });
-  function callName(node) {
-    if (node.type !== "CallExpression") return "";
-    if (node.base.type === "Identifier") return node.base.name;
-    if (node.base.type === "MemberExpression" && node.base.identifier?.name) return node.base.identifier.name;
-    return "";
+async function exists(p) {
+  try {
+    await fsp.stat(p);
+    return true;
+  } catch {
+    return false;
   }
-  function argString(node, idx) {
-    const a = node.arguments?.[idx];
-    if (!a) return void 0;
-    if (a.type === "StringLiteral") return a.value;
-    return void 0;
-  }
-  function lineOf(node) {
-    return node.loc?.start?.line || 1;
-  }
-  function addCallEvent(name, from, to, node) {
-    if (!events[name]) events[name] = { name, from, to, callsites: [], handlers: [] };
-    events[name].callsites.push({ file, line: lineOf(node) });
-  }
-  function addHandleEvent(name, to, node) {
-    if (!events[name]) events[name] = { name, from: to, to, callsites: [], handlers: [] };
-    events[name].handlers.push({ file, line: lineOf(node) });
-  }
-  function walk(node) {
-    if (!node || typeof node !== "object") return;
-    if (node.type === "CallExpression") {
-      const n = callName(node);
-      if (n === "TriggerEvent") addCallEvent(argString(node, 0) || "", side, side, node);
-      if (n === "TriggerServerEvent") addCallEvent(argString(node, 0) || "", side, "server", node);
-      if (n === "TriggerClientEvent") addCallEvent(argString(node, 0) || "", side, "client", node);
-      if (n === "RegisterNetEvent") addHandleEvent(argString(node, 0) || "", side, node);
-      if (n === "RegisterCommand") {
-        const name = argString(node, 0) || "";
-        commands.push({ name, side, file, line: lineOf(node) });
-      }
-      if (n === "exports") {
-        const fn = argString(node, 0) || "";
-        if (fn) exportsArr.push({ name: fn, side, declared: { file, line: lineOf(node) }, usage: [] });
-      }
-      if (n === "SetConvar") {
-        const key = argString(node, 0) || "";
-        const val = argString(node, 1);
-        convars.push({ key, file, line: lineOf(node), defaultValue: val });
-      }
-      if (n === "GetConvar") {
-        const key = argString(node, 0) || "";
-        convars.push({ key, file, line: lineOf(node) });
-      }
-    }
-    for (const k in node) {
-      const v = node[k];
-      if (Array.isArray(v)) v.forEach(walk);
-      else if (v && typeof v === "object") walk(v);
-    }
-  }
-  walk(ast);
-  return { events: Object.values(events), commands, exports: exportsArr, convars };
 }
-
-// src/parsers/js.ts
-import { parse } from "@typescript-eslint/typescript-estree";
-function parseNui(content, file) {
-  const ast = parse(content, { jsx: true, loc: true });
+async function walk(dir) {
   const out = [];
-  function isSendNui(node) {
-    if (node.type !== "CallExpression") return false;
-    const callee = node.callee;
-    if (callee.type === "Identifier" && callee.name === "SendNUIMessage") return true;
-    return false;
-  }
-  function isRegisterCallback(node) {
-    if (node.type !== "CallExpression") return false;
-    const callee = node.callee;
-    if (callee.type === "Identifier" && callee.name === "RegisterNUICallback") return true;
-    return false;
-  }
-  function argString(node, idx) {
-    const a = node.arguments?.[idx];
-    if (!a) return void 0;
-    if (a.type === "Literal") return a.value;
-    if (a.type === "TemplateLiteral" && a.quasis[0]) return a.quasis[0].value.cooked;
-    return void 0;
-  }
-  function walk(node) {
-    if (!node || typeof node !== "object") return;
-    if (node.type === "CallExpression") {
-      if (isSendNui(node)) {
-        out.push({ channel: "SendNUIMessage", direction: "lua_to_js", file, line: node.loc.start.line });
-      }
-      if (isRegisterCallback(node)) {
-        const ch = argString(node, 0) || "";
-        out.push({ channel: ch, direction: "js_to_lua", file, line: node.loc.start.line });
-      }
-    }
-    for (const k in node) {
-      const v = node[k];
-      if (Array.isArray(v)) v.forEach(walk);
-      else if (v && typeof v === "object") walk(v);
+  async function rec(d) {
+    const items = await fsp.readdir(d, { withFileTypes: true });
+    for (const it of items) {
+      const p = d + "/" + it.name;
+      if (it.isDirectory()) await rec(p);
+      else out.push(p);
     }
   }
-  walk(ast);
+  await rec(dir);
   return out;
 }
 
-// src/scan.ts
-function detectSide(file) {
-  const f = file.toLowerCase();
-  if (f.includes("/client") || f.endsWith("/client.lua") || f.endsWith("_client.lua")) return "client";
-  if (f.includes("/server") || f.endsWith("/server.lua") || f.endsWith("_server.lua")) return "server";
-  if (f.includes("/html/") || f.endsWith(".js") || f.endsWith(".ts")) return "nui";
-  return "shared";
-}
-async function scanProject(root) {
-  const patterns = ["**/*.lua", "**/*.js", "**/*.ts", "!**/node_modules/**"];
-  const files = await listFiles(root, patterns);
-  const resourcesMap = /* @__PURE__ */ new Map();
-  for (const file of files) {
-    const parts = file.split("/");
-    let resName = parts[0];
-    if (!resName || resName === "resources") resName = parts[1] || "root";
-    if (!resourcesMap.has(resName)) resourcesMap.set(resName, { name: resName, files: [], events: [], commands: [], exports: [], convars: [], nui: [], deps: [] });
-    const res = resourcesMap.get(resName);
-    res.files.push(file);
-    const side = detectSide(file);
-    const content = await read(root, file);
-    if (file.endsWith(".lua")) {
-      const r = parseLua(content, file, side === "nui" ? "client" : side);
-      res.events.push(...r.events);
-      res.commands.push(...r.commands);
-      res.exports.push(...r.exports);
-      res.convars.push(...r.convars);
-    } else if (file.endsWith(".js") || file.endsWith(".ts")) {
-      const n = parseNui(content, file);
-      res.nui.push(...n);
+// src/parsers/lua.ts
+var callRe = /\b([A-Za-z_][A-Za-z0-9_\.]*)\s*\(([^)]*)\)/g;
+var assignVarRe = /\blocal\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*["']([^"']+)["']/g;
+var assignTableRe = /\blocal\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*\{([\s\S]*?)\}/g;
+var tableFieldRe = /\b([A-Za-z_][A-Za-z0-9_]*)\s*=\s*["']([^"']+)["']|^\s*\[\s*["']([^"']+)["']\s*\]\s*=\s*["']([^"']+)["']/gm;
+var evFns = /* @__PURE__ */ new Set(["RegisterNetEvent", "AddEventHandler", "TriggerServerEvent", "TriggerClientEvent", "TriggerEvent"]);
+function buildEnv(src) {
+  const vars = /* @__PURE__ */ new Map();
+  const fields = /* @__PURE__ */ new Map();
+  let m;
+  while (m = assignVarRe.exec(src)) vars.set(m[1], m[2]);
+  while (m = assignTableRe.exec(src)) {
+    const t = m[1];
+    const body = m[2];
+    let f;
+    tableFieldRe.lastIndex = 0;
+    while (f = tableFieldRe.exec(body)) {
+      if (f[1] && f[2]) fields.set(`${t}.${f[1]}`, f[2]);
+      else if (f[3] && f[4]) fields.set(`${t}.${f[3]}`, f[4]);
     }
   }
-  return { resources: Array.from(resourcesMap.values()), scannedAt: (/* @__PURE__ */ new Date()).toISOString(), version: "0.1.0" };
+  return { vars, fields };
+}
+function resolveFirstArg(argRaw, env) {
+  const s = argRaw.trim();
+  if (s.startsWith('"') || s.startsWith("'")) {
+    const m = /["']([^"']+)["']/.exec(s);
+    return m ? m[1] : "";
+  }
+  if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(s)) {
+    const v = env.vars.get(s);
+    if (v) return v;
+  }
+  const dot = s.replace(/\s+/g, "");
+  if (/^[A-Za-z_][A-Za-z0-9_]*\.[A-Za-z_][A-Za-z0-9_]*$/.test(dot)) {
+    const v = env.fields.get(dot);
+    if (v) return v;
+  }
+  const idx = dot.match(/^([A-Za-z_][A-Za-z0-9_]*)\[\s*["']([^"']+)["']\s*\]$/);
+  if (idx) {
+    const v = env.fields.get(`${idx[1]}.${idx[2]}`);
+    if (v) return v;
+  }
+  const cat = dot.match(/^([A-Za-z_][A-Za-z0-9_]*)\.\.["']([^"']+)["']$/);
+  if (cat) {
+    const v = env.vars.get(cat[1]) || "";
+    if (v) return v + cat[2];
+  }
+  return "";
+}
+function parseLua(path, src) {
+  const env = buildEnv(src);
+  const events = {};
+  const lines = src.split(/\r?\n/);
+  for (let i = 0; i < lines.length; i++) {
+    callRe.lastIndex = 0;
+    let m;
+    while (m = callRe.exec(lines[i])) {
+      const fn = m[1];
+      const args = m[2];
+      if (!evFns.has(fn)) continue;
+      const firstArg = args.split(",")[0] || "";
+      const name = resolveFirstArg(firstArg, env);
+      const key = name || "";
+      const where = `${path}:${i + 1}`;
+      if (!events[key]) events[key] = { name: key, calls: [], handlers: [] };
+      if (fn === "RegisterNetEvent" || fn === "AddEventHandler") events[key].handlers.push(where);
+      else events[key].calls.push(where);
+    }
+  }
+  return { path, language: "lua", events: Object.values(events), commands: [], nui: [] };
 }
 
-// src/generate/json.ts
-import { writeFile } from "fs/promises";
-async function writeTraceJSON(outDir, data) {
-  await writeFile(outDir + "/trace.json", JSON.stringify(data, null, 2), "utf8");
+// src/parsers/js.ts
+function parseJs(path, src) {
+  const commands = [];
+  const nui = [];
+  const lines = src.split(/\r?\n/);
+  const cmdRe = /\bRegisterCommand\s*\(\s*["'`]([^"'`]+)["'`]/g;
+  const nuiRe = /\bRegisterNUICallback\s*\(\s*["'`]([^"'`]+)["'`]/g;
+  for (let i = 0; i < lines.length; i++) {
+    let m;
+    cmdRe.lastIndex = 0;
+    while (m = cmdRe.exec(lines[i])) {
+      const name = m[1];
+      const where = `${path}:${i + 1}`;
+      const e = commands.find((c) => c.name === name);
+      if (e) e.where.push(where);
+      else commands.push({ name, where: [where] });
+    }
+    nuiRe.lastIndex = 0;
+    while (m = nuiRe.exec(lines[i])) {
+      const name = m[1];
+      const where = `${path}:${i + 1}`;
+      const e = nui.find((n) => n.name === name);
+      if (e) e.where.push(where);
+      else nui.push({ name, where: [where] });
+    }
+  }
+  return { path, language: "javascript", events: [], commands, nui };
+}
+
+// src/parsers/fxmanifest.ts
+function parseFx(path, src) {
+  return { path, language: "fxmanifest", events: [], commands: [], nui: [] };
+}
+
+// src/scan.ts
+import { relative } from "path";
+function ext(p) {
+  const m = p.match(/\.([a-zA-Z0-9]+)$/);
+  return m ? m[1].toLowerCase() : "";
+}
+async function scanProject(root) {
+  const files = await walk(root);
+  const out = [];
+  for (const abs of files) {
+    const rel = relative(root, abs) || abs;
+    const e = ext(abs);
+    const src = await readText(abs).catch(() => "");
+    if (!src) continue;
+    if (abs.endsWith("fxmanifest.lua")) out.push(parseFx(rel, src));
+    else if (e === "lua") out.push(parseLua(rel, src));
+    else if (e === "js" || e === "ts") out.push(parseJs(rel, src));
+  }
+  const events = {};
+  const commands = {};
+  const nui = {};
+  for (const f of out) {
+    for (const ev of f.events || []) {
+      const k = ev.name || "";
+      if (!events[k]) events[k] = { name: k, calls: [], handlers: [] };
+      events[k].calls.push(...ev.calls || []);
+      events[k].handlers.push(...ev.handlers || []);
+    }
+    for (const c of f.commands || []) {
+      if (!commands[c.name]) commands[c.name] = { name: c.name, where: [] };
+      commands[c.name].where.push(...c.where || []);
+    }
+    for (const n of f.nui || []) {
+      if (!nui[n.name]) nui[n.name] = { name: n.name, where: [] };
+      nui[n.name].where.push(...n.where || []);
+    }
+  }
+  return { files: out, events: Object.values(events), commands: Object.values(commands), nui: Object.values(nui) };
 }
 
 // src/generate/md.ts
-import { writeFile as writeFile2 } from "fs/promises";
-async function writeApiMD(outDir, data) {
-  let md = "# Project map\n\n";
-  for (const r of data.resources) {
-    md += `## ${r.name}
-
-`;
-    if (r.commands.length) {
-      md += "### Commands\n\n| Command | Side | File | Line |\n|--------:|-----|------|------|\n";
-      for (const c of r.commands) md += `| ${c.name} | ${c.side} | ${c.file} | ${c.line} |
-`;
-      md += "\n";
+function table(h, rows) {
+  const a = `| ${h.join(" | ")} |`;
+  const b = `|${h.map(() => "---").join("|")}|`;
+  const r = rows.map((x) => `| ${x.join(" | ")} |`).join("\n");
+  return [a, b, r].join("\n");
+}
+function list(s) {
+  return s.join(", ");
+}
+function renderMarkdown(p) {
+  const parts = [];
+  parts.push("# Project map");
+  const byFile = p.files.slice().sort((a, b) => a.path.localeCompare(b.path));
+  for (const f of byFile) {
+    const name = f.path.split("/").pop() || f.path;
+    parts.push(`
+## ${name}`);
+    if (f.events.length) {
+      parts.push(`
+### Net events
+`);
+      const rows = f.events.map((e) => [e.name || "(unknown)", e.calls.length ? list(e.calls) : "", e.handlers.length ? list(e.handlers) : ""]);
+      parts.push(table(["Name", "Calls", "Handlers"], rows));
     }
-    if (r.events.length) {
-      md += "### Net events\n\n| Name | From | To | Calls | Handlers |\n|------|------|----|-------|----------|\n";
-      for (const e of r.events) {
-        const calls = e.callsites.map((x) => `${x.file}:${x.line}`).join(", ");
-        const handlers = e.handlers.map((x) => `${x.file}:${x.line}`).join(", ");
-        md += `| ${e.name} | ${e.from} | ${e.to} | ${calls} | ${handlers} |
-`;
-      }
-      md += "\n";
+    if (f.commands.length) {
+      parts.push(`
+### Commands
+`);
+      const rows = f.commands.map((c) => [c.name, list(c.where)]);
+      parts.push(table(["Name", "Where"], rows));
     }
-    if (r.exports.length) {
-      md += "### Exports\n\n| Name | Side | Declared |\n|------|------|----------|\n";
-      for (const x of r.exports) md += `| ${x.name} | ${x.side} | ${x.declared.file}:${x.declared.line} |
-`;
-      md += "\n";
-    }
-    if (r.nui.length) {
-      md += "### NUI\n\n| Channel | Direction | File | Line |\n|---------|-----------|------|------|\n";
-      for (const n of r.nui) md += `| ${n.channel} | ${n.direction} | ${n.file} | ${n.line} |
-`;
-      md += "\n";
+    if (f.nui.length) {
+      parts.push(`
+### NUI callbacks
+`);
+      const rows = f.nui.map((n) => [n.name, list(n.where)]);
+      parts.push(table(["Name", "Where"], rows));
     }
   }
-  await writeFile2(outDir + "/API.md", md, "utf8");
+  parts.push(`
+## Summary`);
+  if (p.events.length) {
+    parts.push(`
+### All events
+`);
+    const rows = p.events.map((e) => [e.name || "(unknown)", String(e.calls.length), String(e.handlers.length)]);
+    parts.push(table(["Name", "Calls", "Handlers"], rows));
+  }
+  if (p.commands.length) {
+    parts.push(`
+### All commands
+`);
+    const rows = p.commands.map((c) => [c.name, String(c.where.length)]);
+    parts.push(table(["Name", "Count"], rows));
+  }
+  if (p.nui.length) {
+    parts.push(`
+### All NUI callbacks
+`);
+    const rows = p.nui.map((n) => [n.name, String(n.where.length)]);
+    parts.push(table(["Name", "Count"], rows));
+  }
+  return parts.join("\n");
+}
+
+// src/generate/json.ts
+function renderJson(p) {
+  return JSON.stringify(p, null, 2);
 }
 
 // src/index.ts
-import { mkdir } from "fs/promises";
-import chalk from "chalk";
-import { resolve } from "path";
-var program = new Command();
-program.name("fx-trace").version("0.1.0");
-program.command("scan").argument("<root>").option("--out <dir>", "output dir", "./docs").option("--format <list>", "json,md", "json,md").action(async (root, opts) => {
-  const out = resolve(process.cwd(), opts.out);
-  await mkdir(out, { recursive: true });
-  const data = await scanProject(root);
-  const formats = String(opts.format).split(",").map((x) => x.trim());
-  if (formats.includes("json")) await writeTraceJSON(out, data);
-  if (formats.includes("md")) await writeApiMD(out, data);
-  console.log(chalk.green("Scan complete"), chalk.gray(out));
+import { join } from "path";
+function parseArgs(argv) {
+  const args = argv.slice(2);
+  const cmd = args[0] || "";
+  const rest = args.slice(1);
+  const opts = {};
+  const pos = [];
+  for (let i = 0; i < rest.length; i++) {
+    const a = rest[i];
+    if (a === "--out") opts.out = rest[++i];
+    else if (a === "--format") opts.format = rest[++i];
+    else pos.push(a);
+  }
+  return { cmd, pos, opts };
+}
+async function main() {
+  const { cmd, pos, opts } = parseArgs(process.argv);
+  if (cmd !== "scan") {
+    console.error("Usage: index scan <path> --out <dir> --format md,json|md|json");
+    process.exit(1);
+  }
+  const root = pos[0];
+  if (!root || !await exists(root)) {
+    console.error("Path not found");
+    process.exit(1);
+  }
+  const outDir = String(opts.out || "./docs");
+  const format = String(opts.format || "md,json");
+  const proj = await scanProject(root);
+  if (format.includes("md")) {
+    const md = renderMarkdown(proj);
+    await writeText(join(outDir, "API.md"), md);
+  }
+  if (format.includes("json")) {
+    const js = renderJson(proj);
+    await writeText(join(outDir, "trace.json"), js);
+  }
+  console.log("Done");
+}
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
 });
-program.parse();
 //# sourceMappingURL=index.js.map

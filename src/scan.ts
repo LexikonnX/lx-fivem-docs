@@ -1,39 +1,45 @@
-import { listFiles, read } from "./utils/fs.js"
-import { parseLua } from "./parsers/lua.js"
-import { parseNui } from "./parsers/js.js"
-import { TraceProject, TraceResource } from "./types.js"
-import { basename, dirname } from "path"
+import { walk, readText } from "./utils/fs"
+import { FileScanResult, ProjectScan } from "./utils/types"
+import { parseLua } from "./parsers/lua"
+import { parseJs } from "./parsers/js"
+import { parseFx } from "./parsers/fxmanifest"
+import { relative } from "path"
 
-function detectSide(file: string): "client"|"server"|"shared"|"nui" {
-  const f = file.toLowerCase()
-  if (f.includes("/client") || f.endsWith("/client.lua") || f.endsWith("_client.lua")) return "client"
-  if (f.includes("/server") || f.endsWith("/server.lua") || f.endsWith("_server.lua")) return "server"
-  if (f.includes("/html/") || f.endsWith(".js") || f.endsWith(".ts")) return "nui"
-  return "shared"
+function ext(p: string) {
+  const m = p.match(/\.([a-zA-Z0-9]+)$/)
+  return m ? m[1].toLowerCase() : ""
 }
-export async function scanProject(root: string): Promise<TraceProject> {
-  const patterns = ["**/*.lua", "**/*.js", "**/*.ts", "!**/node_modules/**"]
-  const files = await listFiles(root, patterns)
-  const resourcesMap = new Map<string, TraceResource>()
-  for (const file of files) {
-    const parts = file.split("/")
-    let resName = parts[0]
-    if (!resName || resName === "resources") resName = parts[1] || "root"
-    if (!resourcesMap.has(resName)) resourcesMap.set(resName, { name: resName, files: [], events: [], commands: [], exports: [], convars: [], nui: [], deps: [] })
-    const res = resourcesMap.get(resName)!
-    res.files.push(file)
-    const side = detectSide(file)
-    const content = await read(root, file)
-    if (file.endsWith(".lua")) {
-      const r = parseLua(content, file, side === "nui" ? "client" : side)
-      res.events.push(...r.events)
-      res.commands.push(...r.commands)
-      res.exports.push(...r.exports)
-      res.convars.push(...r.convars)
-    } else if (file.endsWith(".js") || file.endsWith(".ts")) {
-      const n = parseNui(content, file)
-      res.nui.push(...n)
+
+export async function scanProject(root: string): Promise<ProjectScan> {
+  const files = await walk(root)
+  const out: FileScanResult[] = []
+  for (const abs of files) {
+    const rel = relative(root, abs) || abs
+    const e = ext(abs)
+    const src = await readText(abs).catch(() => "")
+    if (!src) continue
+    if (abs.endsWith("fxmanifest.lua")) out.push(parseFx(rel, src))
+    else if (e === "lua") out.push(parseLua(rel, src))
+    else if (e === "js" || e === "ts") out.push(parseJs(rel, src))
+  }
+  const events: Record<string, { name: string; calls: string[]; handlers: string[] }> = {}
+  const commands: Record<string, { name: string; where: string[] }> = {}
+  const nui: Record<string, { name: string; where: string[] }> = {}
+  for (const f of out) {
+    for (const ev of f.events || []) {
+      const k = ev.name || ""
+      if (!events[k]) events[k] = { name: k, calls: [], handlers: [] }
+      events[k].calls.push(...(ev.calls || []))
+      events[k].handlers.push(...(ev.handlers || []))
+    }
+    for (const c of f.commands || []) {
+      if (!commands[c.name]) commands[c.name] = { name: c.name, where: [] }
+      commands[c.name].where.push(...(c.where || []))
+    }
+    for (const n of f.nui || []) {
+      if (!nui[n.name]) nui[n.name] = { name: n.name, where: [] }
+      nui[n.name].where.push(...(n.where || []))
     }
   }
-  return { resources: Array.from(resourcesMap.values()), scannedAt: new Date().toISOString(), version: "0.1.0" }
+  return { files: out, events: Object.values(events), commands: Object.values(commands), nui: Object.values(nui) }
 }

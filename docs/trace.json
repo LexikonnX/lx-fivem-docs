@@ -1,5 +1,278 @@
 {
-  "resources": [],
-  "scannedAt": "2025-10-15T19:59:50.862Z",
-  "version": "0.1.0"
+  "files": [
+    {
+      "path": "client.lua",
+      "language": "lua",
+      "events": [
+        {
+          "name": "lx-policepark:toggleRadar",
+          "calls": [],
+          "handlers": [
+            "client.lua:61",
+            "client.lua:62"
+          ]
+        },
+        {
+          "name": "lx-policepark:notifyEligible",
+          "calls": [],
+          "handlers": [
+            "client.lua:75",
+            "client.lua:76"
+          ]
+        },
+        {
+          "name": "lx-policepark:checkAndProceed",
+          "calls": [
+            "client.lua:101"
+          ],
+          "handlers": []
+        },
+        {
+          "name": "lx-policepark:denyAction",
+          "calls": [],
+          "handlers": [
+            "client.lua:111",
+            "client.lua:112"
+          ]
+        },
+        {
+          "name": "lx-policepark:startFineProcess",
+          "calls": [],
+          "handlers": [
+            "client.lua:116",
+            "client.lua:117"
+          ]
+        },
+        {
+          "name": "lx-policepark:openTicketWindow",
+          "calls": [
+            "client.lua:130"
+          ],
+          "handlers": [
+            "client.lua:133",
+            "client.lua:134"
+          ]
+        },
+        {
+          "name": "lx-policepark:rewardPlayer",
+          "calls": [
+            "client.lua:147"
+          ],
+          "handlers": []
+        },
+        {
+          "name": "lx-policepark:scanVehicle",
+          "calls": [
+            "client.lua:199"
+          ],
+          "handlers": []
+        }
+      ],
+      "commands": [],
+      "nui": []
+    },
+    {
+      "path": "config.lua",
+      "language": "lua",
+      "events": [],
+      "commands": [],
+      "nui": []
+    },
+    {
+      "path": "fxmanifest.lua",
+      "language": "fxmanifest",
+      "events": [],
+      "commands": [],
+      "nui": []
+    },
+    {
+      "path": "locales/cz.lua",
+      "language": "lua",
+      "events": [],
+      "commands": [],
+      "nui": []
+    },
+    {
+      "path": "locales/en.lua",
+      "language": "lua",
+      "events": [],
+      "commands": [],
+      "nui": []
+    },
+    {
+      "path": "server.lua",
+      "language": "lua",
+      "events": [
+        {
+          "name": "lx-policepark:scanVehicle",
+          "calls": [],
+          "handlers": [
+            "server.lua:10",
+            "server.lua:11"
+          ]
+        },
+        {
+          "name": "lx-policepark:notifyEligible",
+          "calls": [
+            "server.lua:25"
+          ],
+          "handlers": []
+        },
+        {
+          "name": "lx-policepark:checkAndProceed",
+          "calls": [],
+          "handlers": [
+            "server.lua:33",
+            "server.lua:34"
+          ]
+        },
+        {
+          "name": "lx-policepark:denyAction",
+          "calls": [
+            "server.lua:38"
+          ],
+          "handlers": []
+        },
+        {
+          "name": "lx-policepark:startFineProcess",
+          "calls": [
+            "server.lua:40"
+          ],
+          "handlers": []
+        },
+        {
+          "name": "lx-policepark:rewardPlayer",
+          "calls": [],
+          "handlers": [
+            "server.lua:45"
+          ]
+        },
+        {
+          "name": "lx-policepark:denyFine",
+          "calls": [
+            "server.lua:52"
+          ],
+          "handlers": []
+        },
+        {
+          "name": "QBCore:Notify",
+          "calls": [
+            "server.lua:53"
+          ],
+          "handlers": []
+        },
+        {
+          "name": "lx-policepark:confirmFine",
+          "calls": [
+            "server.lua:66"
+          ],
+          "handlers": []
+        }
+      ],
+      "commands": [],
+      "nui": []
+    }
+  ],
+  "events": [
+    {
+      "name": "lx-policepark:toggleRadar",
+      "calls": [],
+      "handlers": [
+        "client.lua:61",
+        "client.lua:62"
+      ]
+    },
+    {
+      "name": "lx-policepark:notifyEligible",
+      "calls": [
+        "server.lua:25"
+      ],
+      "handlers": [
+        "client.lua:75",
+        "client.lua:76"
+      ]
+    },
+    {
+      "name": "lx-policepark:checkAndProceed",
+      "calls": [
+        "client.lua:101"
+      ],
+      "handlers": [
+        "server.lua:33",
+        "server.lua:34"
+      ]
+    },
+    {
+      "name": "lx-policepark:denyAction",
+      "calls": [
+        "server.lua:38"
+      ],
+      "handlers": [
+        "client.lua:111",
+        "client.lua:112"
+      ]
+    },
+    {
+      "name": "lx-policepark:startFineProcess",
+      "calls": [
+        "server.lua:40"
+      ],
+      "handlers": [
+        "client.lua:116",
+        "client.lua:117"
+      ]
+    },
+    {
+      "name": "lx-policepark:openTicketWindow",
+      "calls": [
+        "client.lua:130"
+      ],
+      "handlers": [
+        "client.lua:133",
+        "client.lua:134"
+      ]
+    },
+    {
+      "name": "lx-policepark:rewardPlayer",
+      "calls": [
+        "client.lua:147"
+      ],
+      "handlers": [
+        "server.lua:45"
+      ]
+    },
+    {
+      "name": "lx-policepark:scanVehicle",
+      "calls": [
+        "client.lua:199"
+      ],
+      "handlers": [
+        "server.lua:10",
+        "server.lua:11"
+      ]
+    },
+    {
+      "name": "lx-policepark:denyFine",
+      "calls": [
+        "server.lua:52"
+      ],
+      "handlers": []
+    },
+    {
+      "name": "QBCore:Notify",
+      "calls": [
+        "server.lua:53"
+      ],
+      "handlers": []
+    },
+    {
+      "name": "lx-policepark:confirmFine",
+      "calls": [
+        "server.lua:66"
+      ],
+      "handlers": []
+    }
+  ],
+  "commands": [],
+  "nui": []
 }

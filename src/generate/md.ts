@@ -1,34 +1,54 @@
-import { writeFile } from "fs/promises"
-import { TraceProject } from "../types.js"
+import { ProjectScan } from "../utils/types"
 
-export async function writeApiMD(outDir: string, data: TraceProject) {
-  let md = "# Project map\n\n"
-  for (const r of data.resources) {
-    md += `## ${r.name}\n\n`
-    if (r.commands.length) {
-      md += "### Commands\n\n| Command | Side | File | Line |\n|--------:|-----|------|------|\n"
-      for (const c of r.commands) md += `| ${c.name} | ${c.side} | ${c.file} | ${c.line} |\n`
-      md += "\n"
+function table(h: string[], rows: string[][]) {
+  const a = `| ${h.join(" | ")} |`
+  const b = `|${h.map(()=> "---").join("|")}|`
+  const r = rows.map(x=>`| ${x.join(" | ")} |`).join("\n")
+  return [a,b,r].join("\n")
+}
+
+function list(s: string[]) {
+  return s.join(", ")
+}
+
+export function renderMarkdown(p: ProjectScan) {
+  const parts: string[] = []
+  parts.push("# Project map")
+  const byFile = p.files.slice().sort((a,b)=>a.path.localeCompare(b.path))
+  for (const f of byFile) {
+    const name = f.path.split("/").pop() || f.path
+    parts.push(`\n## ${name}`)
+    if (f.events.length) {
+      parts.push(`\n### Net events\n`)
+      const rows = f.events.map(e=>[e.name || "(unknown)", e.calls.length?list(e.calls):"", e.handlers.length?list(e.handlers):""])
+      parts.push(table(["Name","Calls","Handlers"], rows))
     }
-    if (r.events.length) {
-      md += "### Net events\n\n| Name | From | To | Calls | Handlers |\n|------|------|----|-------|----------|\n"
-      for (const e of r.events) {
-        const calls = e.callsites.map(x => `${x.file}:${x.line}`).join(", ")
-        const handlers = e.handlers.map(x => `${x.file}:${x.line}`).join(", ")
-        md += `| ${e.name} | ${e.from} | ${e.to} | ${calls} | ${handlers} |\n`
-      }
-      md += "\n"
+    if (f.commands.length) {
+      parts.push(`\n### Commands\n`)
+      const rows = f.commands.map(c=>[c.name, list(c.where)])
+      parts.push(table(["Name","Where"], rows))
     }
-    if (r.exports.length) {
-      md += "### Exports\n\n| Name | Side | Declared |\n|------|------|----------|\n"
-      for (const x of r.exports) md += `| ${x.name} | ${x.side} | ${x.declared.file}:${x.declared.line} |\n`
-      md += "\n"
-    }
-    if (r.nui.length) {
-      md += "### NUI\n\n| Channel | Direction | File | Line |\n|---------|-----------|------|------|\n"
-      for (const n of r.nui) md += `| ${n.channel} | ${n.direction} | ${n.file} | ${n.line} |\n`
-      md += "\n"
+    if (f.nui.length) {
+      parts.push(`\n### NUI callbacks\n`)
+      const rows = f.nui.map(n=>[n.name, list(n.where)])
+      parts.push(table(["Name","Where"], rows))
     }
   }
-  await writeFile(outDir + "/API.md", md, "utf8")
+  parts.push(`\n## Summary`)
+  if (p.events.length) {
+    parts.push(`\n### All events\n`)
+    const rows = p.events.map(e=>[e.name || "(unknown)", String(e.calls.length), String(e.handlers.length)])
+    parts.push(table(["Name","Calls","Handlers"], rows))
+  }
+  if (p.commands.length) {
+    parts.push(`\n### All commands\n`)
+    const rows = p.commands.map(c=>[c.name, String(c.where.length)])
+    parts.push(table(["Name","Count"], rows))
+  }
+  if (p.nui.length) {
+    parts.push(`\n### All NUI callbacks\n`)
+    const rows = p.nui.map(n=>[n.name, String(n.where.length)])
+    parts.push(table(["Name","Count"], rows))
+  }
+  return parts.join("\n")
 }

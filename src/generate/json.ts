@@ -1,6 +1,5 @@
-import { writeFile } from "fs/promises"
-import { TraceProject } from "../types.js"
+import { ProjectScan } from "../utils/types.ts"
 
-export async function writeTraceJSON(outDir: string, data: TraceProject) {
-  await writeFile(outDir + "/trace.json", JSON.stringify(data, null, 2), "utf8")
+export function renderJson(p: ProjectScan) {
+  return JSON.stringify(p, null, 2)
 }

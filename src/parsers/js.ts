@@ -1,45 +1,29 @@
-import { parse } from "@typescript-eslint/typescript-estree"
-import { TraceNui } from "../types.js"
+import { FileScanResult, CommandRef, NuiRef } from "../utils/types.ts"
 
-export function parseNui(content: string, file: string): TraceNui[] {
-  const ast = parse(content, { jsx: true, loc: true })
-  const out: TraceNui[] = []
-  function isSendNui(node: any) {
-    if (node.type !== "CallExpression") return false
-    const callee = node.callee
-    if (callee.type === "Identifier" && callee.name === "SendNUIMessage") return true
-    return false
-  }
-  function isRegisterCallback(node: any) {
-    if (node.type !== "CallExpression") return false
-    const callee = node.callee
-    if (callee.type === "Identifier" && callee.name === "RegisterNUICallback") return true
-    return false
-  }
-  function argString(node: any, idx: number) {
-    const a = node.arguments?.[idx]
-    if (!a) return undefined
-    if (a.type === "Literal") return a.value as string
-    if (a.type === "TemplateLiteral" && a.quasis[0]) return a.quasis[0].value.cooked as string
-    return undefined
-  }
-  function walk(node: any) {
-    if (!node || typeof node !== "object") return
-    if (node.type === "CallExpression") {
-      if (isSendNui(node)) {
-        out.push({ channel: "SendNUIMessage", direction: "lua_to_js", file, line: node.loc.start.line })
-      }
-      if (isRegisterCallback(node)) {
-        const ch = argString(node, 0) || ""
-        out.push({ channel: ch, direction: "js_to_lua", file, line: node.loc.start.line })
-      }
+export function parseJs(path: string, src: string): FileScanResult {
+  const commands: CommandRef[] = []
+  const nui: NuiRef[] = []
+  const lines = src.split(/\r?\n/)
+  const cmdRe = /\bRegisterCommand\s*\(\s*["'`]([^"'`]+)["'`]/g
+  const nuiRe = /\bRegisterNUICallback\s*\(\s*["'`]([^"'`]+)["'`]/g
+  for (let i = 0; i < lines.length; i++) {
+    let m
+    cmdRe.lastIndex = 0
+    while ((m = cmdRe.exec(lines[i]))) {
+      const name = m[1]
+      const where = `${path}:${i+1}`
+      const e = commands.find(c => c.name === name)
+      if (e) e.where.push(where)
+      else commands.push({ name, where: [where] })
     }
-    for (const k in node) {
-      const v = (node as any)[k]
-      if (Array.isArray(v)) v.forEach(walk)
-      else if (v && typeof v === "object") walk(v)
+    nuiRe.lastIndex = 0
+    while ((m = nuiRe.exec(lines[i]))) {
+      const name = m[1]
+      const where = `${path}:${i+1}`
+      const e = nui.find(n => n.name === name)
+      if (e) e.where.push(where)
+      else nui.push({ name, where: [where] })
     }
   }
-  walk(ast)
-  return out
+  return { path, language: "javascript", events: [], commands, nui }
 }

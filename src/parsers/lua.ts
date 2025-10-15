@@ -1,73 +1,76 @@
-import luaparse from "luaparse"
-import { TraceEvent, TraceCommand, TraceExport, TraceConvar } from "../types.js"
+import { FileScanResult, EventRef } from "../utils/types.ts"
 
-type LuaScan = {
-  events: TraceEvent[]
-  commands: TraceCommand[]
-  exports: TraceExport[]
-  convars: TraceConvar[]
+const callRe = /\b([A-Za-z_][A-Za-z0-9_\.]*)\s*\(([^)]*)\)/g
+const assignVarRe = /\blocal\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*["']([^"']+)["']/g
+const assignTableRe = /\blocal\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*\{([\s\S]*?)\}/g
+const tableFieldRe = /\b([A-Za-z_][A-Za-z0-9_]*)\s*=\s*["']([^"']+)["']|^\s*\[\s*["']([^"']+)["']\s*\]\s*=\s*["']([^"']+)["']/gm
+const evFns = new Set(["RegisterNetEvent","AddEventHandler","TriggerServerEvent","TriggerClientEvent","TriggerEvent"])
+
+function buildEnv(src: string) {
+  const vars = new Map<string,string>()
+  const fields = new Map<string,string>()
+  let m
+  while ((m = assignVarRe.exec(src))) vars.set(m[1], m[2])
+  while ((m = assignTableRe.exec(src))) {
+    const t = m[1]
+    const body = m[2]
+    let f
+    tableFieldRe.lastIndex = 0
+    while ((f = tableFieldRe.exec(body))) {
+      if (f[1] && f[2]) fields.set(`${t}.${f[1]}`, f[2])
+      else if (f[3] && f[4]) fields.set(`${t}.${f[3]}`, f[4])
+    }
+  }
+  return { vars, fields }
 }
-export function parseLua(content: string, file: string, side: "client" | "server" | "shared"): LuaScan {
-  const events: Record<string, TraceEvent> = {}
-  const commands: TraceCommand[] = []
-  const exportsArr: TraceExport[] = []
-  const convars: TraceConvar[] = []
-  const ast = luaparse.parse(content, { locations: true, ranges: true, comments: false, luaVersion: "5.1" })
-  function callName(node: any) {
-    if (node.type !== "CallExpression") return ""
-    if (node.base.type === "Identifier") return node.base.name
-    if (node.base.type === "MemberExpression" && node.base.identifier?.name) return node.base.identifier.name
-    return ""
+
+function resolveFirstArg(argRaw: string, env: { vars: Map<string,string>, fields: Map<string,string> }) {
+  const s = argRaw.trim()
+  if (s.startsWith('"') || s.startsWith("'")) {
+    const m = /["']([^"']+)["']/.exec(s)
+    return m ? m[1] : ""
   }
-  function argString(node: any, idx: number) {
-    const a = node.arguments?.[idx]
-    if (!a) return undefined
-    if (a.type === "StringLiteral") return a.value
-    return undefined
+  if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(s)) {
+    const v = env.vars.get(s)
+    if (v) return v
   }
-  function lineOf(node: any) {
-    return node.loc?.start?.line || 1
+  const dot = s.replace(/\s+/g, "")
+  if (/^[A-Za-z_][A-Za-z0-9_]*\.[A-Za-z_][A-Za-z0-9_]*$/.test(dot)) {
+    const v = env.fields.get(dot)
+    if (v) return v
   }
-  function addCallEvent(name: string, from: "client"|"server"|"shared", to: "client"|"server"|"shared", node: any) {
-    if (!events[name]) events[name] = { name, from, to, callsites: [], handlers: [] }
-    events[name].callsites.push({ file, line: lineOf(node) })
+  const idx = dot.match(/^([A-Za-z_][A-Za-z0-9_]*)\[\s*["']([^"']+)["']\s*\]$/)
+  if (idx) {
+    const v = env.fields.get(`${idx[1]}.${idx[2]}`)
+    if (v) return v
   }
-  function addHandleEvent(name: string, to: "client"|"server"|"shared", node: any) {
-    if (!events[name]) events[name] = { name, from: to, to, callsites: [], handlers: [] }
-    events[name].handlers.push({ file, line: lineOf(node) })
+  const cat = dot.match(/^([A-Za-z_][A-Za-z0-9_]*)\.\.["']([^"']+)["']$/)
+  if (cat) {
+    const v = env.vars.get(cat[1]) || ""
+    if (v) return v + cat[2]
   }
-  function walk(node: any) {
-    if (!node || typeof node !== "object") return
-    if (node.type === "CallExpression") {
-      const n = callName(node)
-      if (n === "TriggerEvent") addCallEvent(argString(node, 0) || "", side, side, node)
-      if (n === "TriggerServerEvent") addCallEvent(argString(node, 0) || "", side, "server", node)
-      if (n === "TriggerClientEvent") addCallEvent(argString(node, 0) || "", side, "client", node)
-      if (n === "RegisterNetEvent") addHandleEvent(argString(node, 0) || "", side, node)
-      if (n === "RegisterCommand") {
-        const name = argString(node, 0) || ""
-        commands.push({ name, side, file, line: lineOf(node) })
-      }
-      if (n === "exports") {
-        const fn = argString(node, 0) || ""
-        if (fn) exportsArr.push({ name: fn, side, declared: { file, line: lineOf(node) }, usage: [] })
-      }
-      if (n === "SetConvar") {
-        const key = argString(node, 0) || ""
-        const val = argString(node, 1)
-        convars.push({ key, file, line: lineOf(node), defaultValue: val })
-      }
-      if (n === "GetConvar") {
-        const key = argString(node, 0) || ""
-        convars.push({ key, file, line: lineOf(node) })
-      }
-    }
-    for (const k in node) {
-      const v = (node as any)[k]
-      if (Array.isArray(v)) v.forEach(walk)
-      else if (v && typeof v === "object") walk(v)
+  return ""
+}
+
+export function parseLua(path: string, src: string): FileScanResult {
+  const env = buildEnv(src)
+  const events: Record<string, EventRef> = {}
+  const lines = src.split(/\r?\n/)
+  for (let i = 0; i < lines.length; i++) {
+    callRe.lastIndex = 0
+    let m
+    while ((m = callRe.exec(lines[i]))) {
+      const fn = m[1]
+      const args = m[2]
+      if (!evFns.has(fn)) continue
+      const firstArg = args.split(",")[0] || ""
+      const name = resolveFirstArg(firstArg, env)
+      const key = name || ""
+      const where = `${path}:${i+1}`
+      if (!events[key]) events[key] = { name: key, calls: [], handlers: [] }
+      if (fn === "RegisterNetEvent" || fn === "AddEventHandler") events[key].handlers.push(where)
+      else events[key].calls.push(where)
     }
   }
-  walk(ast)
-  return { events: Object.values(events), commands, exports: exportsArr, convars }
+  return { path, language: "lua", events: Object.values(events), commands: [], nui: [] }
 }
