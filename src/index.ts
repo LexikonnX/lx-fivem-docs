@@ -2,9 +2,9 @@ import { Command } from "commander"
 import { scanProject } from "./scan.js"
 import { writeTraceJSON } from "./generate/json.js"
 import { writeApiMD } from "./generate/md.js"
-import { mkdir } from "node:fs/promises"
+import { mkdir } from "fs/promises"
 import chalk from "chalk"
-import { resolve } from "node:path"
+import { resolve } from "path"
 
 const program = new Command()
 program.name("fx-trace").version("0.1.0")

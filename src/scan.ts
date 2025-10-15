@@ -2,7 +2,7 @@ import { listFiles, read } from "./utils/fs.js"
 import { parseLua } from "./parsers/lua.js"
 import { parseNui } from "./parsers/js.js"
 import { TraceProject, TraceResource } from "./types.js"
-import { basename, dirname } from "node:path"
+import { basename, dirname } from "path"
 
 function detectSide(file: string): "client"|"server"|"shared"|"nui" {
   const f = file.toLowerCase()

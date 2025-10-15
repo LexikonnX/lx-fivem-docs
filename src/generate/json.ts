@@ -1,4 +1,4 @@
-import { writeFile } from "node:fs/promises"
+import { writeFile } from "fs/promises"
 import { TraceProject } from "../types.js"
 
 export async function writeTraceJSON(outDir: string, data: TraceProject) {
