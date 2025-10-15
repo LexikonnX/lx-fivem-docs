@@ -5,7 +5,7 @@
   "bin": {
     "lx-fivem-docs": "dist/index.js"
   },
-  "files": ["dist"],
+  "files": ["dist", "bin"],
   "scripts": {
     "build": "tsup src/index.ts --format esm,cjs --dts --sourcemap",
     "start": "node dist/index.js",
