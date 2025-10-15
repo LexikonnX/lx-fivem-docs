@@ -11,13 +11,13 @@ Release page: [https://github.com/LexikonnX/lx-fivem-docs/releases/tag/last](htt
 1. **Download the latest release**  
    👉 [Click here to download ZIP](https://github.com/LexikonnX/lx-fivem-docs/releases/tag/last)
 
-2. **Extract the ZIP** anywhere on your computer (e.g., Desktop or Documents).  
-   You should see a folder named `lx-fivem-docs` containing all files like `package.json`, `src/`, and `tsconfig.json`.
+2. **Extract the ZIP** anywhere on your computer (for example, in your Downloads folder).  
+   You should see a folder named `lx-fivem-docs` containing files like `package.json`, `src/`, and `tsconfig.json`.
 
-3. **Open a terminal in that folder**  
-   Example:
+3. **Open Command Prompt or PowerShell in that folder**  
+   Example (Windows):
    ```bash
-   cd ~/Downloads/lx-fivem-docs
+   cd C:\Users\YourName\Downloads\lx-fivem-docs
    ```
 
 4. **Install dependencies**
@@ -37,12 +37,12 @@ Release page: [https://github.com/LexikonnX/lx-fivem-docs/releases/tag/last](htt
 
 Example usage:
 ```bash
-node dist/index.js scan ./resources/[local]/lx-admin --out ./docs --format md,json
+node dist/index.js scan .\resources\[local]\lx-admin --out .\docs --format md,json
 ```
 
 This will generate:
-- `./docs/API.md` — Markdown documentation
-- `./docs/trace.json` — structured JSON data
+- `.\docs\API.md` — Markdown documentation
+- `.\docs\trace.json` — structured JSON data
 
 ---
 
@@ -61,8 +61,8 @@ This will generate:
 
 | Option | Description | Example |
 |---------|-------------|----------|
-| `scan <path>` | Path to your resource folder | `scan ./resources/[local]/lx-admin` |
-| `--out <dir>` | Output directory for generated files | `--out ./docs` |
+| `scan <path>` | Path to your resource folder | `scan .\resources\[local]\lx-admin` |
+| `--out <dir>` | Output directory for generated files | `--out .\docs` |
 | `--format <type>` | Output format: `md`, `json`, or both | `--format md,json` |
 
 ---
@@ -102,8 +102,8 @@ This will generate:
 ## 💬 Notes
 
 This release (`last`) is a stable standalone version.  
-It does not require any GitHub cloning — simply download the ZIP and run it locally.  
-Perfect for generating documentation for your own FiveM scripts or public resources.
+It works on **Windows, macOS, and Linux**, but the examples above are written for **Windows users**.  
+You do **not** need to clone the repository — just download the ZIP and run the commands locally.
 
 For issues or feature requests, please use the repository page:  
 👉 [https://github.com/LexikonnX/lx-fivem-docs](https://github.com/LexikonnX/lx-fivem-docs)
