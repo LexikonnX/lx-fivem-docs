@@ -2,14 +2,14 @@
 
 **Automatic documentation generator for FiveM resources**  
 Author: **LexikonnX**  
-Release page: [https://github.com/LexikonnX/lx-fivem-docs/releases/tag/last](https://github.com/LexikonnX/lx-fivem-docs/releases/tag/last)
+Release page: [https://github.com/LexikonnX/lx-fivem-docs/releases/tag/v1.0.0](https://github.com/LexikonnX/lx-fivem-docs/releases/tag/v1.0.0)
 
 ---
 
 ## 📦 Download & Setup
 
 1. **Download the latest release**  
-   👉 [Click here to download ZIP](https://github.com/LexikonnX/lx-fivem-docs/releases/tag/last)
+   👉 [Click here to download ZIP](https://github.com/LexikonnX/lx-fivem-docs/releases/tag/v1.0.0)
 
 2. **Extract the ZIP** anywhere on your computer (for example, in your Downloads folder).  
    You should see a folder named `lx-fivem-docs` containing files like `package.json`, `src/`, and `tsconfig.json`.
