@@ -1,69 +1,59 @@
-# lx-fivem-docs — Release Notes
+# lx-fivem-docs — Release: `last`
 
-### Version: latest (`last`)
-**Release date:** 2025
+**Automatic documentation generator for FiveM resources**  
+Author: **LexikonnX**  
+Release page: [https://github.com/LexikonnX/lx-fivem-docs/releases/tag/last](https://github.com/LexikonnX/lx-fivem-docs/releases/tag/last)
 
 ---
 
-## 🧩 Overview
+## 📦 Download & Setup
 
-`lx-fivem-docs` is an automatic documentation generator for FiveM resources.  
-It scans your resource files (`.lua`, `.js`, `.ts`) and generates detailed Markdown and JSON documentation of all registered and triggered events, NUI callbacks, and commands.
+1. **Download the latest release**  
+   👉 [Click here to download ZIP](https://github.com/LexikonnX/lx-fivem-docs/releases/tag/last)
+
+2. **Extract the ZIP** anywhere on your computer (e.g., Desktop or Documents).  
+   You should see a folder named `lx-fivem-docs` containing all files like `package.json`, `src/`, and `tsconfig.json`.
+
+3. **Open a terminal in that folder**  
+   Example:
+   ```bash
+   cd ~/Downloads/lx-fivem-docs
+   ```
+
+4. **Install dependencies**
+   ```bash
+   npm install
+   ```
+
+5. **Build the project**
+   ```bash
+   npm run build
+   ```
+
+6. **Run the generator**
+   ```bash
+   node dist/index.js scan <path-to-resource> --out <output-directory> --format md,json
+   ```
+
+Example usage:
+```bash
+node dist/index.js scan ./resources/[local]/lx-admin --out ./docs --format md,json
+```
+
+This will generate:
+- `./docs/API.md` — Markdown documentation
+- `./docs/trace.json` — structured JSON data
 
 ---
 
 ## ✨ Features
 
-- 🔍 Scans entire resource directories recursively  
-- 📜 Detects:
+- Recursively scans your resource folder  
+- Detects:
   - `RegisterNetEvent`, `AddEventHandler`, `TriggerServerEvent`, `TriggerClientEvent`, `TriggerEvent`
-  - `RegisterCommand` and `RegisterNUICallback` in JS/TS files  
-- 🧾 Generates:
-  - **API.md** — a structured Markdown document  
-  - **trace.json** — machine-readable event mapping
-- 🧠 Resolves events even if they’re stored in variables or tables
-- 🧰 Works offline, no internet connection required
-
----
-
-## ⚙️ Requirements
-
-- Node.js **version 18 or higher**
-- npm (comes pre-installed with Node)
-
----
-
-## 🚀 How to Use
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/LexikonnX/lx-fivem-docs.git
-   cd lx-fivem-docs
-   ```
-
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
-
-3. **Build the project**
-   ```bash
-   npm run build
-   ```
-
-4. **Run the generator**
-   ```bash
-   node dist/index.js scan <path-to-resource> --out <output-directory> --format md,json
-   ```
-
-Example:
-```bash
-node dist/index.js scan ./resources/[local]/lx-admin --out ./docs --format md,json
-```
-
-This will create:
-- `./docs/API.md` — readable documentation
-- `./docs/trace.json` — structured event mapping
+  - `RegisterCommand` and `RegisterNUICallback` in JS/TS  
+- Automatically resolves event names from variables or tables  
+- Exports results to Markdown (`API.md`) and/or JSON (`trace.json`)
 
 ---
 
@@ -71,9 +61,9 @@ This will create:
 
 | Option | Description | Example |
 |---------|-------------|----------|
-| `scan <path>` | Path to the resource directory | `scan ./resources/[local]/lx-admin` |
-| `--out <dir>` | Output directory for docs | `--out ./docs` |
-| `--format <type>` | Format type (`md`, `json`, or both) | `--format md,json` |
+| `scan <path>` | Path to your resource folder | `scan ./resources/[local]/lx-admin` |
+| `--out <dir>` | Output directory for generated files | `--out ./docs` |
+| `--format <type>` | Output format: `md`, `json`, or both | `--format md,json` |
 
 ---
 
@@ -102,15 +92,24 @@ This will create:
 
 ---
 
-## 🪪 License
+## ⚙️ Requirements
 
-MIT License © 2025 LexikonnX  
-Project repository: [https://github.com/LexikonnX/lx-fivem-docs](https://github.com/LexikonnX/lx-fivem-docs)
+- Node.js **v18 or newer**
+- npm (included with Node.js)
 
 ---
 
-### 💬 Notes
+## 💬 Notes
 
-This release contains the stable version of the CLI tool capable of generating detailed FiveM resource documentation.  
-For bug reports or feature requests, please open an issue on the repository.
+This release (`last`) is a stable standalone version.  
+It does not require any GitHub cloning — simply download the ZIP and run it locally.  
+Perfect for generating documentation for your own FiveM scripts or public resources.
 
+For issues or feature requests, please use the repository page:  
+👉 [https://github.com/LexikonnX/lx-fivem-docs](https://github.com/LexikonnX/lx-fivem-docs)
+
+---
+
+## 🪪 License
+
+MIT License © 2025 **LexikonnX**
